@@ -15,6 +15,7 @@ type Session struct {
 	mu        sync.RWMutex
 	Broadcast chan Event
 	Chat      []*Message
+	subscribers map[string]chan Event
 }
 
 type Message struct {
@@ -55,4 +56,29 @@ func (s *Session) AddUser(u *User) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Users[u.UserID.String()] = u
+}
+
+func (s *Session) Subscribe(userID string) chan Event {
+	ch := make(chan Event, 32)
+	s.mu.Lock()
+	s.subscribers[userID] = ch
+	s.mu.Unlock()
+	return ch
+}
+
+func (s *Session) Unsubscribe(userID string) {
+	s.mu.Lock()
+	delete(s.subscribers, userID)
+	s.mu.Unlock()
+}
+
+func (s *Session) Publish(e Event) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, ch := range s.subscribers {
+		select {
+		case ch <- e:
+		default:
+		}
+	}
 }
