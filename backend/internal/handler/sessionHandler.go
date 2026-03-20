@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/RoHobie/Okudera/backend/internal/types"
+	"github.com/google/uuid"
 )
 
 type CreateSessionRequest struct {
@@ -14,8 +14,8 @@ type CreateSessionRequest struct {
 }
 
 type CreateSessionResponse struct {
-	Code    string `json:"code"`
-	UserID  string `json:"user_id"`
+	Code   string `json:"code"`
+	UserID string `json:"user_id"`
 }
 
 type JoinSessionRequest struct {
@@ -58,7 +58,7 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
-		code := parts[4]				// not changing url structure anytime soon
+		code := parts[4] // not changing url structure anytime soon
 
 		sess, ok := store.Get(code)
 		if !ok {
@@ -79,11 +79,10 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 
 		sess.AddUser(user)
 
-		// broadcast to existing members
-		sess.Broadcast <- types.Event{
+		sess.Publish(types.Event{
 			Type: "user_joined",
 			Data: map[string]string{"name": user.Name, "user_id": user.UserID.String()},
-		}
+		})
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(JoinSessionResponse{

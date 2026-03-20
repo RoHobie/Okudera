@@ -49,6 +49,7 @@ func NewSession(owner *User) *Session {
         Perms:     false,
         Chat:      make([]*Message, 0, 50),
         Broadcast: make(chan Event, 32), 
+		subscribers: make(map[string]chan Event),
     }
 }
 
