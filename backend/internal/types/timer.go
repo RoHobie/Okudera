@@ -6,4 +6,5 @@ type Timer struct {
 	State string
 	Duration time.Duration
 	Remaining time.Duration
+	stop chan struct{}
 }
