@@ -50,3 +50,9 @@ func NewSession(owner *User) *Session {
         Broadcast: make(chan Event, 32), 
     }
 }
+
+func (s *Session) AddUser(u *User) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Users[u.UserID.String()] = u
+}
