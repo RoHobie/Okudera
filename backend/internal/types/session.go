@@ -59,6 +59,15 @@ func (s *Session) AddUser(u *User) {
 	s.Users[u.UserID.String()] = u
 }
 
+func (s *Session) AddMessage(msg *Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.Chat) >= 50 {
+		s.Chat = s.Chat[1:]
+	}
+	s.Chat = append(s.Chat, msg)
+}
+ 
 func (s *Session) Subscribe(userID string) chan Event {
 	ch := make(chan Event, 32)
 	s.mu.Lock()
