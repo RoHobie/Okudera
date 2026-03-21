@@ -12,9 +12,13 @@ func main() {
 	store := types.NewStore()
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/api/v1/sessions", handler.CreateSessionHandler(store))
 	mux.HandleFunc("/api/v1/sessions/", handler.JoinSessionHandler(store))
 	mux.HandleFunc("/api/v1/stream", handler.StreamHandler(store))
+	mux.HandleFunc("/api/v1/sessions/{code}/timer", handler.SetTimerHandler(store))
+	mux.HandleFunc("/api/v1/sessions/{code}/timer/", handler.TimerActionHandler(store))
+	mux.HandleFunc("/api/v1/sessions/{code}/messages", handler.SendMessageHandler(store))
 
 	// serve frontend
 	mux.Handle("/", http.FileServer(http.Dir("../client")))
