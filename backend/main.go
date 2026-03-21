@@ -36,7 +36,7 @@ func main() {
 	})
 
 	// serve frontend
-	r.Handle("/", http.FileServer(http.Dir("../client")))
+	r.Handle("/*", http.FileServer(http.Dir("../client")))
 
 	log.Println("server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
