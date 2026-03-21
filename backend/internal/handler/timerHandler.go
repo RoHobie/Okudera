@@ -3,9 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/RoHobie/Okudera/backend/internal/types"
+	"github.com/go-chi/chi/v5"
 )
 
 type SetTimerRequest struct {
@@ -19,7 +19,8 @@ type TimerActionRequest struct {
 
 func SetTimerHandler(store *types.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		code := extractCode(r.URL.Path) // /api/v1/sessions/{code}/timer
+		code := chi.URLParam(r, "code")
+
 		sess, ok := store.Get(code)
 		if !ok {
 			http.Error(w, "session not found", http.StatusNotFound)
@@ -28,7 +29,7 @@ func SetTimerHandler(store *types.Store) http.HandlerFunc {
 
 		var req SetTimerRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Seconds <= 0 {
-			http.Error(w, "invalid request, seconds required", http.StatusBadRequest)
+			http.Error(w, "seconds required", http.StatusBadRequest)
 			return
 		}
 
@@ -37,28 +38,15 @@ func SetTimerHandler(store *types.Store) http.HandlerFunc {
 			return
 		}
 
-		sess.Timer = types.NewTimer(req.Seconds)
-		sess.Publish(types.Event{
-			Type: "timer_state",
-			Data: map[string]interface{}{
-				"remaining": req.Seconds,
-				"state":     "idle",
-			},
-		})
-
+		sess.SetTimer(req.Seconds)
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func TimerActionHandler(store *types.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-		if len(parts) < 7 {
-			http.Error(w, "invalid path", http.StatusBadRequest)
-			return
-		}
-		code := parts[4]
-		action := parts[6] // start | pause | reset
+		code := chi.URLParam(r, "code")
+		action := chi.URLParam(r, "action")
 
 		sess, ok := store.Get(code)
 		if !ok {
@@ -74,20 +62,21 @@ func TimerActionHandler(store *types.Store) http.HandlerFunc {
 			return
 		}
 
-		if sess.Timer == nil {
-			http.Error(w, "timer not set", http.StatusBadRequest)
+		var err error
+		switch action {
+		case "start":
+			err = sess.StartTimer()
+		case "pause":
+			err = sess.PauseTimer()
+		case "reset":
+			err = sess.ResetTimer()
+		default:
+			http.Error(w, "unknown action", http.StatusBadRequest)
 			return
 		}
 
-		switch action {
-		case "start":
-			sess.Timer.Start(sess.Publish)
-		case "pause":
-			sess.Timer.Pause(sess.Publish)
-		case "reset":
-			sess.Timer.Reset(sess.Publish)
-		default:
-			http.Error(w, "unknown action", http.StatusBadRequest)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 
@@ -95,18 +84,9 @@ func TimerActionHandler(store *types.Store) http.HandlerFunc {
 	}
 }
 
-// helpers
-func extractCode(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) >= 5 {
-		return parts[4]
-	}
-	return ""
-}
-
 func isOwnerOrAllowed(sess *types.Session, userID string) bool {
 	if sess.Owner.UserID.String() == userID {
 		return true
 	}
-	return sess.Perms // if perms = true, anyone can control timer
+	return sess.Perms
 }

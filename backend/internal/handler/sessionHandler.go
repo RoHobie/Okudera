@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/RoHobie/Okudera/backend/internal/types"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -19,8 +20,7 @@ type CreateSessionResponse struct {
 }
 
 type JoinSessionRequest struct {
-	Name   string `json:"name"`
-	UserID string `json:"user_id"`
+	Name string `json:"name"`
 }
 
 type JoinSessionResponse struct {
@@ -32,14 +32,11 @@ func CreateSessionHandler(store *types.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
-			http.Error(w, "invalid request, name is required", http.StatusBadRequest)
+			http.Error(w, "name is required", http.StatusBadRequest)
 			return
 		}
 
-		owner := &types.User{
-			UserID: uuid.New(),
-			Name:   req.Name,
-		}
+		owner := &types.User{UserID: uuid.New(), Name: req.Name}
 		sess := types.NewSession(owner)
 		store.Add(sess)
 
@@ -53,12 +50,7 @@ func CreateSessionHandler(store *types.Store) http.HandlerFunc {
 
 func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-		if len(parts) < 6 {
-			http.Error(w, "invalid path", http.StatusBadRequest)
-			return
-		}
-		code := parts[4] // not changing url structure anytime soon
+		code := chi.URLParam(r, "code")
 
 		sess, ok := store.Get(code)
 		if !ok {
@@ -68,15 +60,11 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 
 		var req JoinSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
-			http.Error(w, "invalid request, name is required", http.StatusBadRequest)
+			http.Error(w, "name is required", http.StatusBadRequest)
 			return
 		}
 
-		user := &types.User{
-			UserID: uuid.New(),
-			Name:   req.Name,
-		}
-
+		user := &types.User{UserID: uuid.New(), Name: req.Name}
 		sess.AddUser(user)
 
 		sess.Publish(types.Event{

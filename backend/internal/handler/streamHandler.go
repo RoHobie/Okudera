@@ -25,13 +25,18 @@ func StreamHandler(store *types.Store) http.HandlerFunc {
 			return
 		}
 
-		// each client gets their own channel
 		ch := sess.Subscribe(userID)
 		defer sess.Unsubscribe(userID)
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+
+		snapshot := sess.Snapshot()
+		if data, err := json.Marshal(snapshot); err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		}
 
 		for {
 			select {
