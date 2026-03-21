@@ -92,10 +92,9 @@ func (s *Session) Publish(e Event) {
 	}
 }
 
-// SetTimer replaces the timer entirely — safe to call anytime
 func (s *Session) SetTimer(seconds int) {
 	s.mu.Lock()
-	// stop existing timer goroutine if running
+
 	if s.Timer != nil && s.Timer.State == "running" {
 		close(s.Timer.stop)
 	}
@@ -128,8 +127,6 @@ func (s *Session) StartTimer() error {
 	s.Timer.State = "running"
 	s.Timer.stop = make(chan struct{})
 
-	// capture for goroutine — don't close over s.Timer directly
-	// since it could be replaced by SetTimer
 	t := s.Timer
 
 	go func() {
@@ -177,7 +174,7 @@ func (s *Session) PauseTimer() error {
 	close(s.Timer.stop)
 
 	remaining := int(s.Timer.Remaining.Seconds())
-	// publish outside lock to avoid deadlock with Publish's RLock
+
 	go s.Publish(Event{Type: "timer_state", Data: map[string]interface{}{"remaining": remaining, "state": "paused"}})
 
 	return nil
@@ -204,7 +201,6 @@ func (s *Session) ResetTimer() error {
 	return nil
 }
 
-// Snapshot returns current session state for new joiners
 func (s *Session) Snapshot() Event {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -218,7 +214,6 @@ func (s *Session) Snapshot() Event {
 		timerData["state"] = s.Timer.State
 	}
 
-	// copy chat so we don't send a live reference
 	chatCopy := make([]*Message, len(s.Chat))
 	copy(chatCopy, s.Chat)
 
