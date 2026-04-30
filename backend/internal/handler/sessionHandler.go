@@ -23,6 +23,10 @@ type JoinSessionRequest struct {
 	Name string `json:"name"`
 }
 
+type LeaveSessionRequest struct {
+	UserID string `json:"user_id"`
+}
+
 type JoinSessionResponse struct {
 	Code   string `json:"code"`
 	UserID string `json:"user_id"`
@@ -70,6 +74,7 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 		sess.Publish(types.Event{
 			Type: "user_joined",
 			Data: map[string]string{"name": user.Name, "user_id": user.UserID.String()},
+			
 		})
 
 		w.Header().Set("Content-Type", "application/json")
@@ -77,5 +82,38 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 			Code:   code,
 			UserID: user.UserID.String(),
 		})
+	}
+}
+
+func LeaveSessionHandler(store *types.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := chi.URLParam(r, "code")
+		sess, ok := store.Get(code)
+		if !ok {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+
+		var req LeaveSessionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.UserID) == "" {
+			http.Error(w, "user_id is required", http.StatusBadRequest)
+			return
+		}
+
+		// remove user
+		sess.RemoveUser(req.UserID)
+
+		// unsubscribe from SSE
+		sess.Unsubscribe(req.UserID)
+
+		// notify others
+		sess.Publish(types.Event{
+			Type: "user_left",
+			Data: map[string]string{
+				"user_id": req.UserID,
+			},
+		})
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
