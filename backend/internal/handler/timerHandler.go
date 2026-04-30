@@ -33,8 +33,9 @@ func SetTimerHandler(store *types.Store) http.HandlerFunc {
 			return
 		}
 
-		if !isOwnerOrAllowed(sess, req.UserID) {
-			http.Error(w, "not allowed", http.StatusForbidden)
+		// Only the owner can set the timer
+		if !sess.IsOwner(req.UserID) {
+			http.Error(w, "only the room owner can control the timer", http.StatusForbidden)
 			return
 		}
 
@@ -57,8 +58,9 @@ func TimerActionHandler(store *types.Store) http.HandlerFunc {
 		var req TimerActionRequest
 		json.NewDecoder(r.Body).Decode(&req)
 
-		if !isOwnerOrAllowed(sess, req.UserID) {
-			http.Error(w, "not allowed", http.StatusForbidden)
+		// Only the owner can start/pause/reset
+		if !sess.IsOwner(req.UserID) {
+			http.Error(w, "only the room owner can control the timer", http.StatusForbidden)
 			return
 		}
 
@@ -82,11 +84,4 @@ func TimerActionHandler(store *types.Store) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
-}
-
-func isOwnerOrAllowed(sess *types.Session, userID string) bool {
-	if sess.Owner.UserID.String() == userID {
-		return true
-	}
-	return sess.Perms
 }
