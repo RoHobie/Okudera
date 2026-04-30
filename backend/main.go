@@ -26,6 +26,7 @@ func main() {
 			Post("/sessions", handler.CreateSessionHandler(store))
 
 		r.Post("/sessions/{code}/join", handler.JoinSessionHandler(store))
+		r.Post("/sessions/{code}/leave", handler.LeaveSessionHandler(store))
 		r.Get("/stream", handler.StreamHandler(store))
 
 		r.Post("/sessions/{code}/timer", handler.SetTimerHandler(store))
@@ -36,7 +37,7 @@ func main() {
 	})
 
 	// serve frontend
-	r.Handle("/*", http.FileServer(http.Dir("../client")))
+	r.Handle("/*", http.FileServer(http.Dir("../frontend/dist")))
 
 	log.Println("server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
