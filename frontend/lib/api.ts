@@ -1,87 +1,79 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
 
-export async function createSession(name: string): Promise<{ code: string; user_id: string }> {
-  const res = await fetch(`${API_BASE}/sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to create session");
-  }
-  
-  return res.json();
+export interface SessionCreated {
+  code: string
+  user_id: string
 }
 
-export async function joinSession(code: string, name: string): Promise<{ code: string; user_id: string }> {
-  const res = await fetch(`${API_BASE}/sessions/${code}/join`, {
+export interface SessionJoined {
+  code: string
+  user_id: string
+}
+
+export async function createSession(name: string): Promise<SessionCreated> {
+  const res = await fetch(`${API}/api/v1/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to join session");
-  }
-  
-  return res.json();
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function joinSession(code: string, name: string): Promise<SessionJoined> {
+  const res = await fetch(`${API}/api/v1/sessions/${code}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
 export async function leaveSession(code: string, userId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/sessions/${code}/leave`, {
+  await fetch(`${API}/api/v1/sessions/${code}/leave`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to leave session");
-  }
+  })
 }
 
 export async function setTimer(code: string, userId: string, seconds: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/sessions/${code}/timer`, {
+  const res = await fetch(`${API}/api/v1/sessions/${code}/timer`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, seconds }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to set timer");
-  }
+  })
+  if (!res.ok) throw new Error(await res.text())
 }
 
-export async function timerAction(code: string, userId: string, action: "start" | "pause" | "reset"): Promise<void> {
-  const res = await fetch(`${API_BASE}/sessions/${code}/timer/${action}`, {
+export async function timerAction(
+  code: string,
+  userId: string,
+  action: "start" | "pause" | "reset"
+): Promise<void> {
+  const res = await fetch(`${API}/api/v1/sessions/${code}/timer/${action}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Failed to ${action} timer`);
-  }
+  })
+  if (!res.ok) throw new Error(await res.text())
 }
 
-export async function sendMessage(code: string, userId: string, name: string, text: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/sessions/${code}/messages`, {
+export async function sendMessage(
+  code: string,
+  userId: string,
+  name: string,
+  text: string
+): Promise<void> {
+  const res = await fetch(`${API}/api/v1/sessions/${code}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, name, text }),
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to send message");
-  }
+  })
+  if (!res.ok) throw new Error(await res.text())
 }
 
-export function createEventSource(code: string, userId: string): EventSource {
-  return new EventSource(`${API_BASE}/stream?code=${code}&user_id=${userId}`);
+export function openStream(code: string, userId: string): EventSource {
+  return new EventSource(`${API}/api/v1/stream?code=${code}&user_id=${userId}`)
 }
