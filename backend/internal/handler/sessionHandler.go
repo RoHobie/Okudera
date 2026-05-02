@@ -42,11 +42,11 @@ func CreateSessionHandler(store *types.Store) http.HandlerFunc {
 
 		owner := &types.User{UserID: uuid.New(), Name: req.Name}
 		sess := types.NewSession(owner)
-		store.Add(sess)
+		code := store.Add(sess)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(CreateSessionResponse{
-			Code:   sess.Code,
+			Code:   code,
 			UserID: owner.UserID.String(),
 		})
 	}
@@ -74,7 +74,6 @@ func JoinSessionHandler(store *types.Store) http.HandlerFunc {
 		sess.Publish(types.Event{
 			Type: "user_joined",
 			Data: map[string]string{"name": user.Name, "user_id": user.UserID.String()},
-			
 		})
 
 		w.Header().Set("Content-Type", "application/json")
@@ -90,7 +89,7 @@ func LeaveSessionHandler(store *types.Store) http.HandlerFunc {
 		code := chi.URLParam(r, "code")
 		sess, ok := store.Get(code)
 		if !ok {
-			http.Error(w, "Session not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
@@ -100,19 +99,16 @@ func LeaveSessionHandler(store *types.Store) http.HandlerFunc {
 			return
 		}
 
-		// remove user
-		sess.RemoveUser(req.UserID)
-
-		// unsubscribe from SSE
-		sess.Unsubscribe(req.UserID)
-
-		// notify others
-		sess.Publish(types.Event{
-			Type: "user_left",
-			Data: map[string]string{
-				"user_id": req.UserID,
-			},
-		})
+		if sess.IsOwner(req.UserID) {
+			sess.Close()
+			store.Delete(code)
+		} else {
+			sess.RemoveUser(req.UserID)
+			sess.Publish(types.Event{
+				Type: "user_left",
+				Data: map[string]string{"user_id": req.UserID},
+			})
+		}
 
 		w.WriteHeader(http.StatusOK)
 	}
