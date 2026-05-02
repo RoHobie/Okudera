@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createSession, joinSession } from "@/lib/api"
 
-type Mode = "idle" | "create" | "join"
-
-export default function Home() {
+function HomeInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
-  const [mode, setMode] = useState<Mode>("idle")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const sessionClosed = searchParams.get("reason") === "session_closed"
 
   const trimmedName = name.trim()
   const trimmedCode = code.trim().toUpperCase()
@@ -34,7 +34,7 @@ export default function Home() {
   }
 
   async function handleJoin() {
-    if (!trimmedName || !trimmedCode) return
+    if (!trimmedName || trimmedCode.length !== 6) return
     setLoading(true)
     setError("")
     try {
@@ -91,7 +91,6 @@ export default function Home() {
       />
 
       <div
-        className="animate-fade-in"
         style={{
           position: "relative",
           width: "100%",
@@ -120,6 +119,24 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Session closed notice */}
+        {sessionClosed && (
+          <div
+            style={{
+              background: "var(--bg-2)",
+              border: "1px solid var(--border-2)",
+              borderLeft: "2px solid var(--amber)",
+              borderRadius: "2px",
+              padding: "0.75rem 1rem",
+              fontSize: "0.8rem",
+              color: "var(--text-2)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            The room was closed by the owner.
+          </div>
+        )}
+
         {/* Card */}
         <div
           style={{
@@ -129,7 +146,7 @@ export default function Home() {
             padding: "2rem",
             display: "flex",
             flexDirection: "column",
-            gap: "1.25rem",
+            gap: "1.5rem",
           }}
         >
           {/* Name input */}
@@ -146,120 +163,81 @@ export default function Home() {
             </label>
             <input
               value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                setError("")
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && trimmedName) setMode("create")
-              }}
+              onChange={(e) => { setName(e.target.value); setError("") }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreate() }}
               placeholder="enter name"
               maxLength={50}
-              style={{
-                background: "var(--bg-3)",
-                border: "1px solid var(--border)",
-                borderRadius: "2px",
-                color: "var(--text)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.9rem",
-                padding: "0.65rem 0.75rem",
-                outline: "none",
-                transition: "border-color 0.15s",
-              }}
+              autoFocus
+              style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = "var(--amber)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
             />
           </div>
 
-          {/* Mode: idle — show two buttons */}
-          {mode === "idle" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <button
-                onClick={() => { setMode("create"); setError("") }}
-                disabled={!trimmedName}
-                style={btnStyle("primary")}
-              >
-                Create room
-              </button>
-              <button
-                onClick={() => { setMode("join"); setError("") }}
-                disabled={!trimmedName}
-                style={btnStyle("ghost")}
-              >
-                Join room
-              </button>
-            </div>
-          )}
+          {/* Create room */}
+          <button
+            onClick={handleCreate}
+            disabled={loading || !trimmedName}
+            style={btnStyle("primary")}
+          >
+            {loading ? "Creating…" : "Create room"}
+          </button>
 
-          {/* Mode: create */}
-          {mode === "create" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }} className="animate-slide-down">
-              <button
-                onClick={handleCreate}
-                disabled={loading || !trimmedName}
-                style={btnStyle("primary")}
-              >
-                {loading ? "Creating…" : "Confirm — Create room"}
-              </button>
-              <button onClick={() => setMode("idle")} style={btnStyle("ghost")}>
-                Back
-              </button>
-            </div>
-          )}
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <hr style={{ flex: 1, border: "none", borderTop: "1px solid var(--border)" }} />
+            <span
+              className="font-mono"
+              style={{ fontSize: "0.65rem", color: "var(--text-3)", letterSpacing: "0.15em" }}
+            >
+              OR JOIN
+            </span>
+            <hr style={{ flex: 1, border: "none", borderTop: "1px solid var(--border)" }} />
+          </div>
 
-          {/* Mode: join */}
-          {mode === "join" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }} className="animate-slide-down">
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <label
-                  style={{
-                    fontSize: "0.7rem",
-                    letterSpacing: "0.15em",
-                    color: "var(--text-3)",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Room code
-                </label>
-                <input
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value.toUpperCase().slice(0, 6))
-                    setError("")
-                  }}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleJoin() }}
-                  placeholder="XXXXXX"
-                  maxLength={6}
-                  className="font-mono"
-                  style={{
-                    background: "var(--bg-3)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "2px",
-                    color: "var(--amber)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "1.25rem",
-                    letterSpacing: "0.3em",
-                    padding: "0.65rem 0.75rem",
-                    outline: "none",
-                    textAlign: "center",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--amber)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-              </div>
-              <button
-                onClick={handleJoin}
-                disabled={loading || !trimmedName || trimmedCode.length !== 6}
-                style={btnStyle("primary")}
+          {/* Room code + join */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label
+                style={{
+                  fontSize: "0.7rem",
+                  letterSpacing: "0.15em",
+                  color: "var(--text-3)",
+                  textTransform: "uppercase",
+                }}
               >
-                {loading ? "Joining…" : "Join room"}
-              </button>
-              <button onClick={() => setMode("idle")} style={btnStyle("ghost")}>
-                Back
-              </button>
+                Room code
+              </label>
+              <input
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.toUpperCase().slice(0, 6))
+                  setError("")
+                }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleJoin() }}
+                placeholder="XXXXXX"
+                maxLength={6}
+                className="font-mono"
+                style={{
+                  ...inputStyle,
+                  color: "var(--amber)",
+                  fontSize: "1.25rem",
+                  letterSpacing: "0.3em",
+                  textAlign: "center",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--amber)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              />
             </div>
-          )}
+
+            <button
+              onClick={handleJoin}
+              disabled={loading || !trimmedName || trimmedCode.length !== 6}
+              style={btnStyle("ghost")}
+            >
+              {loading ? "Joining…" : "Join room"}
+            </button>
+          </div>
 
           {error && (
             <p
@@ -278,6 +256,29 @@ export default function Home() {
       </div>
     </main>
   )
+}
+
+// useSearchParams requires Suspense in Next.js app router
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeInner />
+    </Suspense>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  background: "var(--bg-3)",
+  border: "1px solid var(--border)",
+  borderRadius: "2px",
+  color: "var(--text)",
+  fontFamily: "var(--font-mono)",
+  fontSize: "0.9rem",
+  padding: "0.65rem 0.75rem",
+  outline: "none",
+  transition: "border-color 0.15s",
+  width: "100%",
+  boxSizing: "border-box",
 }
 
 function btnStyle(variant: "primary" | "ghost"): React.CSSProperties {

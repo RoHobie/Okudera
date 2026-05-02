@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { openStream } from "@/lib/api"
 
 export interface TimerState {
@@ -41,6 +42,7 @@ const INITIAL: SessionState = {
 }
 
 export function useSession(code: string, userId: string) {
+  const router = useRouter()
   const [state, setState] = useState<SessionState>(INITIAL)
   const esRef = useRef<EventSource | null>(null)
   const feedIdRef = useRef(0)
@@ -83,12 +85,19 @@ export function useSession(code: string, userId: string) {
           }))
           break
 
+        case "session_closed":
+          // Owner left — session is gone. Clean up and go home.
+          es.close()
+          sessionStorage.removeItem("okudera_user_id")
+          sessionStorage.removeItem("okudera_name")
+          router.replace("/?reason=session_closed")
+          break
+
         case "timer_tick":
         case "timer_done":
         case "timer_set":
         case "timer_state":
-          setState((prev) => ({ ...prev, timer: data as TimerState }))
-          // only add feed entry for meaningful state changes, not every tick
+          setState((prev) => ({ ...prev, timer: data as unknown as TimerState }))
           if (event.Type !== "timer_tick") addFeed(event.Type as FeedEntry["type"], data)
           break
 
@@ -123,7 +132,7 @@ export function useSession(code: string, userId: string) {
       es.close()
       esRef.current = null
     }
-  }, [code, userId])
+  }, [code, userId, router])
 
   return state
 }
