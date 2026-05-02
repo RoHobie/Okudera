@@ -1,8 +1,8 @@
 package types
 
 import (
+	"context"
 	"errors"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -28,20 +28,9 @@ type Event struct {
 	Data interface{}
 }
 
-const codeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-func generateCode() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, 6)
-	for i := range b {
-		b[i] = codeChars[r.Intn(len(codeChars))]
-	}
-	return string(b)
-}
-
 func NewSession(owner *User) *Session {
 	return &Session{
-		Code:        generateCode(),
+		Code:        "", // assigned by Store.Add
 		Owner:       owner,
 		Users:       map[string]*User{owner.UserID.String(): owner},
 		Chat:        make([]*Message, 0, 50),
@@ -55,10 +44,10 @@ func (s *Session) AddUser(u *User) {
 	s.Users[u.UserID.String()] = u
 }
 
-func (s *Session) RemoveUser(userID string){
+func (s *Session) RemoveUser(userID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.Users, string(userID))
+	delete(s.Users, userID)
 }
 
 func (s *Session) AddMessage(msg *Message) {
@@ -79,15 +68,13 @@ func (s *Session) Subscribe(userID string) chan Event {
 	return ch
 }
 
-// Unsubscribe removes a user's channel.
+// Unsubscribe removes a user's channel. Safe to call on a missing key.
 func (s *Session) Unsubscribe(userID string) {
 	s.mu.Lock()
 	delete(s.subscribers, userID)
 	s.mu.Unlock()
 }
 
-// Publish fans out an event to all connected subscribers.
-// Non-blocking: slow subscribers are skipped (their buffer is full).
 func (s *Session) Publish(e Event) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -103,12 +90,22 @@ func (s *Session) IsOwner(userID string) bool {
 	return s.Owner.UserID.String() == userID
 }
 
+func (s *Session) Close() {
+	s.mu.Lock()
+	if s.Timer != nil {
+		s.Timer.cancel()
+	}
+	s.mu.Unlock()
+
+	s.Publish(Event{Type: "session_closed", Data: nil})
+}
+
 // ── Timer methods ──────────────────────────────────────────────────
 
 func (s *Session) SetTimer(seconds int) {
 	s.mu.Lock()
-	if s.Timer != nil && s.Timer.State == "running" {
-		close(s.Timer.stop)
+	if s.Timer != nil {
+		s.Timer.cancel()
 	}
 	s.Timer = NewTimer(seconds)
 	s.mu.Unlock()
@@ -121,21 +118,26 @@ func (s *Session) SetTimer(seconds int) {
 
 func (s *Session) StartTimer() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.Timer == nil {
+		s.mu.Unlock()
 		return errors.New("timer not set")
 	}
 	if s.Timer.State == "running" {
+		s.mu.Unlock()
 		return errors.New("timer already running")
 	}
 	if s.Timer.State == "done" {
+		s.mu.Unlock()
 		return errors.New("timer is done — reset first")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	s.Timer.ctx = ctx
+	s.Timer.cancel = cancel
 	s.Timer.State = "running"
-	s.Timer.stop = make(chan struct{})
 	t := s.Timer
+	s.mu.Unlock()
 
 	go func() {
 		ticker := time.NewTicker(time.Second)
@@ -158,7 +160,7 @@ func (s *Session) StartTimer() error {
 				}
 				s.Publish(Event{Type: "timer_tick", Data: map[string]interface{}{"remaining": remaining, "state": "running"}})
 
-			case <-t.stop:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -169,40 +171,40 @@ func (s *Session) StartTimer() error {
 
 func (s *Session) PauseTimer() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.Timer == nil {
+		s.mu.Unlock()
 		return errors.New("timer not set")
 	}
 	if s.Timer.State != "running" {
+		s.mu.Unlock()
 		return errors.New("timer is not running")
 	}
 
 	s.Timer.State = "paused"
-	close(s.Timer.stop)
+	s.Timer.cancel()
 	remaining := int(s.Timer.Remaining.Seconds())
+	s.mu.Unlock()
 
-	go s.Publish(Event{Type: "timer_state", Data: map[string]interface{}{"remaining": remaining, "state": "paused"}})
+	s.Publish(Event{Type: "timer_state", Data: map[string]interface{}{"remaining": remaining, "state": "paused"}})
 	return nil
 }
 
 func (s *Session) ResetTimer() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.Timer == nil {
+		s.mu.Unlock()
 		return errors.New("timer not set")
 	}
-	if s.Timer.State == "running" {
-		close(s.Timer.stop)
-	}
 
+	s.Timer.cancel()
 	s.Timer.Remaining = s.Timer.Duration
 	s.Timer.State = "idle"
-	s.Timer.stop = make(chan struct{})
-
 	remaining := int(s.Timer.Remaining.Seconds())
-	go s.Publish(Event{Type: "timer_state", Data: map[string]interface{}{"remaining": remaining, "state": "idle"}})
+	s.mu.Unlock()
+
+	s.Publish(Event{Type: "timer_state", Data: map[string]interface{}{"remaining": remaining, "state": "idle"}})
 	return nil
 }
 
@@ -217,7 +219,6 @@ func (s *Session) Snapshot() Event {
 		timerData["state"] = s.Timer.State
 	}
 
-	// Include current users
 	users := make([]map[string]string, 0, len(s.Users))
 	for _, u := range s.Users {
 		users = append(users, map[string]string{
