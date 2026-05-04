@@ -18,14 +18,14 @@ type Session struct {
 }
 
 type Message struct {
-	UserID string
-	Name   string
-	Text   string
+	UserID string `json:"user_id"`
+	Name   string `json:"name"`
+	Text   string `json:"text"`
 }
 
 type Event struct {
-	Type string
-	Data interface{}
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
 }
 
 func NewSession(owner *User) *Session {
