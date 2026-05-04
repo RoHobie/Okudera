@@ -92,12 +92,20 @@ export function TimerDial({ state, remaining, duration }: Props) {
 
       {/* Inner content */}
       <div className="timer-dial-inner">
-        <span className={`timer-countdown mono${isDone ? ' timer-countdown--done' : ''}`}>
+        <span className={`timer-countdown mono${isDone ? ' timer-countdown--done' : ''}${isRunning ? ' timer-countdown--running' : ''}`}>
           {formatTime(remaining)}
         </span>
-        <span className={`timer-state-label timer-state-label--${state}`}>
-          {isDone ? '✓ done' : stateLabel[state]}
-        </span>
+        <div className={`timer-state-pill timer-state-pill--${state}`}>
+          <span className="timer-state-icon" aria-hidden="true">
+            {state === 'idle' && '●'}
+            {state === 'running' && '▶'}
+            {state === 'paused' && '⏸'}
+            {state === 'done' && '✓'}
+          </span>
+          <span className="timer-state-text">
+            {isDone ? 'done' : stateLabel[state]}
+          </span>
+        </div>
       </div>
     </div>
   );

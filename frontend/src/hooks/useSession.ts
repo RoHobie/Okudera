@@ -67,7 +67,7 @@ function reducer(state: State, action: Action): State {
       const msgs: ChatMessage[] = snap.chat.map((m, i) => ({
         ...m,
         timestamp: Date.now() - (snap.chat.length - i) * 1000,
-      }));
+      })).reverse();
       return {
         ...state,
         connected: true,
@@ -82,14 +82,25 @@ function reducer(state: State, action: Action): State {
       };
     }
     case 'TIMER_TICK':
-    case 'TIMER_STATE':
-      return { ...state, timerRemaining: action.remaining, timerState: action.state };
+    case 'TIMER_STATE': {
+      const isNewRun = action.state === 'running' && state.timerState !== 'running';
+      const newState = { ...state, timerRemaining: action.remaining, timerState: action.state };
+      if (isNewRun) {
+        newState.messages = [{
+          user_id: 'system',
+          name: 'System',
+          text: '▶ Timer started',
+          timestamp: Date.now()
+        }, ...state.messages];
+      }
+      return newState;
+    }
     case 'TIMER_SET':
       return { ...state, timerDuration: action.seconds, timerRemaining: action.seconds, timerState: 'idle' };
     case 'TIMER_DONE':
       return { ...state, timerState: 'done', timerRemaining: 0 };
     case 'CHAT_MESSAGE':
-      return { ...state, messages: [...state.messages, action.msg] };
+      return { ...state, messages: [action.msg, ...state.messages] };
     case 'USER_JOINED':
       if (state.users.find(u => u.user_id === action.user.user_id)) return state;
       return { ...state, users: [...state.users, action.user] };

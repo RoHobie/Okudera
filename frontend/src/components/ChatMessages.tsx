@@ -65,7 +65,15 @@ export function ChatMessages({ messages, currentUserId }: Props) {
           <span>No messages yet. Say hi!</span>
         </div>
       )}
-      {messages.map((msg, i) => {
+      {[...messages].reverse().map((msg, i) => {
+        const isSystem = msg.user_id === 'system';
+        if (isSystem) {
+          return (
+            <div key={i} className="chat-msg chat-msg--system">
+              <span className="chat-system-text">{msg.text}</span>
+            </div>
+          );
+        }
         const isMine = msg.user_id === currentUserId;
         const hue = nameHue(msg.name);
         return (

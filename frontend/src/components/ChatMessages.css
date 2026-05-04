@@ -27,6 +27,21 @@
   flex-direction: row-reverse;
 }
 
+.chat-msg--system {
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.chat-system-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
 .chat-avatar {
   width: 28px;
   height: 28px;

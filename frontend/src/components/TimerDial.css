@@ -56,25 +56,65 @@
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-  transition: color var(--transition);
+  transition: color var(--transition), filter var(--transition-md);
+  will-change: filter;
 }
 
 .timer-countdown--done {
   color: var(--accent);
+  filter: drop-shadow(0 0 12px rgba(92, 122, 94, 0.4));
 }
 
-.timer-state-label {
+.timer-countdown--running {
+  filter: drop-shadow(0 0 12px rgba(92, 122, 94, 0.25));
+}
+
+.timer-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  transition: color var(--transition);
+  letter-spacing: 0.05em;
+  transition: all var(--transition-md);
+  border: 1px solid transparent;
+  background: transparent;
+  margin-top: 0.25rem;
 }
 
-.timer-state-label--idle    { color: var(--text-muted); }
-.timer-state-label--running { color: var(--accent); }
-.timer-state-label--paused  { color: var(--text-mid); }
-.timer-state-label--done    { color: var(--accent); }
+.timer-state-pill--idle {
+  color: var(--text-muted);
+  border-color: var(--border-mid);
+  background: var(--bg-surface);
+}
+
+.timer-state-pill--running {
+  color: var(--accent-text);
+  border-color: var(--accent-dim);
+  background: var(--accent-bg);
+  animation: pulseBadge 2s ease-in-out infinite;
+}
+
+.timer-state-pill--paused {
+  color: var(--text-mid);
+  border-color: var(--border-mid);
+  background: var(--bg-subtle);
+}
+
+.timer-state-pill--done {
+  color: var(--bg);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+@keyframes pulseBadge {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.85; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
 
 /* Responsive scaling */
 @media (max-width: 767px) {
