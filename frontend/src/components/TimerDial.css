@@ -1,0 +1,83 @@
+.timer-dial-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.timer-dial-wrap--done {
+  animation: pulseDial 350ms ease-out forwards;
+}
+
+.timer-dial-svg {
+  display: block;
+}
+
+/* Running arc gets CSS transition for smooth scrub */
+.arc--running {
+  transition: stroke-dashoffset 800ms linear;
+}
+
+/* Paused arc — frozen, dashed look */
+.arc--paused {
+  stroke-dasharray: 12 12;
+  opacity: 0.75;
+}
+
+/* Done flash */
+.arc--done-flash {
+  stroke-dasharray: none;
+  animation: doneFlash 1.2s ease-out forwards;
+}
+
+@keyframes doneFlash {
+  0%   { opacity: 1;   stroke: var(--accent); }
+  60%  { opacity: 0.6; stroke: var(--accent); }
+  100% { opacity: 0;   stroke: var(--bg-surface); }
+}
+
+/* Inner countdown + label */
+.timer-dial-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.timer-countdown {
+  font-size: 3rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--transition);
+}
+
+.timer-countdown--done {
+  color: var(--accent);
+}
+
+.timer-state-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: color var(--transition);
+}
+
+.timer-state-label--idle    { color: var(--text-muted); }
+.timer-state-label--running { color: var(--accent); }
+.timer-state-label--paused  { color: var(--text-mid); }
+.timer-state-label--done    { color: var(--accent); }
+
+/* Responsive scaling */
+@media (max-width: 767px) {
+  .timer-countdown { font-size: 2rem; }
+  .timer-dial-svg  { width: 200px; height: 200px; }
+}

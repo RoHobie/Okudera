@@ -1,0 +1,47 @@
+.timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.ctrl-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-mid);
+  transition: background var(--transition), color var(--transition),
+    border-color var(--transition), transform var(--transition);
+}
+
+.ctrl-btn:hover:not(:disabled) {
+  background: var(--bg-surface);
+  border-color: var(--border-mid);
+  color: var(--text);
+  transform: scale(1.05);
+}
+
+.ctrl-btn--primary {
+  width: 52px;
+  height: 52px;
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.ctrl-btn--primary:hover:not(:disabled) {
+  background: var(--text-mid);
+  border-color: var(--text-mid);
+  color: var(--bg);
+  transform: scale(1.05);
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
