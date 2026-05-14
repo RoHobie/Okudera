@@ -3,22 +3,28 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/RoHobie/Okudera/backend/internal/handler"
 	"github.com/RoHobie/Okudera/backend/internal/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httprate"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 )
 
 func main() {
 	store := types.NewStore()
 	r := chi.NewRouter()
 
+	originsEnv := os.Getenv("ALLOWED_ORIGINS")
+	if originsEnv == "" {
+		originsEnv = "http://localhost:3000"
+	}
+
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
+		AllowedOrigins:   []string{originsEnv},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type"},
 		AllowCredentials: false,
@@ -46,6 +52,11 @@ func main() {
 		r.With(httprate.LimitByIP(30, time.Minute)).Post("/sessions/{code}/messages", handler.SendMessageHandler(store))
 	})
 
-	log.Println("server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("server listening on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, r))
 }
